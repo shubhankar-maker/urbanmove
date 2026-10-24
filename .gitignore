@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+data/
+.airflow/
+logs/
+.pytest_cache/
+.ipynb_checkpoints/
