@@ -18,13 +18,14 @@ REQUIRED_COLUMNS = {
 }
 
 
+
 def validate_taxi_trips_file(file_path: Path) -> dict:
-    """Validate a Parquet file's metadata and required schema."""
+    """Validate Parquet readability, row count, and required schema."""
     parquet_file = pq.ParquetFile(file_path)
 
-    row_count = parquet_file.metadata.num_rows
+    metadata_row_count = parquet_file.metadata.num_rows
 
-    if row_count == 0:
+    if metadata_row_count == 0:
         raise ValueError("Downloaded Parquet file is empty")
 
     actual_columns = set(parquet_file.schema_arrow.names)
@@ -35,10 +36,24 @@ def validate_taxi_trips_file(file_path: Path) -> dict:
             f"Missing required columns: {sorted(missing_columns)}"
         )
 
+    # Read the file in batches to check that its data pages are readable.
+    readable_row_count = 0
+
+    for batch in parquet_file.iter_batches(batch_size=65_536):
+        readable_row_count += batch.num_rows
+
+    if readable_row_count != metadata_row_count:
+        raise ValueError(
+            "Parquet row count mismatch: "
+            f"metadata={metadata_row_count}, "
+            f"readable={readable_row_count}"
+        )
+
     return {
-        "row_count": row_count,
+        "row_count": readable_row_count,
         "columns": sorted(actual_columns),
     }
+
 
 
 def download_taxi_trips(year: int, month: int) -> Path:
@@ -63,7 +78,7 @@ def download_taxi_trips(year: int, month: int) -> Path:
             print(f"Reusing validated file: {output_path}")
             print(f"Rows: {report['row_count']}")
             return output_path
-        except (ValueError, OSError, Exception):
+        except Exception:
             # An invalid existing file must be downloaded again.
             pass
 
