@@ -10,3 +10,8 @@ data/
 logs/
 .pytest_cache/
 .ipynb_checkpoints/
+# Generated Airflow configuration
+airflow/config/
+
+# Airflow runtime logs
+airflow/logs/

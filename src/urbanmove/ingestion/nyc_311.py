@@ -36,12 +36,6 @@ def validate_date_range(start_date: str, end_date: str) -> None:
         raise ValueError("start_date must be before end_date.")
 
 
-def download_311_data(start_date: str, end_date: str) -> Path:
-    """Download NYC 311 requests for a date range using pagination."""
-
-    validate_date_range(start_date, end_date)
-
-    data_dir = Path(os.getenv("URBANMOVE_DATA_DIR", "data"))
 
 
 def validate_311_data(file_path: Path) -> dict:
@@ -73,6 +67,8 @@ def validate_311_data(file_path: Path) -> dict:
 
 def download_311_data(start_date: str, end_date: str) -> Path:
     """Download NYC 311 requests for a date range using pagination."""
+
+    validate_date_range(start_date, end_date)
 
     data_dir = Path(os.getenv("URBANMOVE_DATA_DIR", "data"))
     raw_dir = data_dir / "raw" / "311"
