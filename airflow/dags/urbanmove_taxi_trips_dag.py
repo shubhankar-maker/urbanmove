@@ -3,7 +3,7 @@ from pathlib import Path
 
 from airflow import DAG
 from airflow.providers.standard.operators.python import PythonOperator
-
+from urbanmove.storage.s3_client import S3Storage
 from urbanmove.ingestion.taxi_trips import (
     download_taxi_trips,
     validate_taxi_trips_file,
@@ -23,6 +23,21 @@ def validate_taxi_trips_task(ti):
 
     print(f"Taxi trips validation report: {report}")
 
+def upload_taxi_trips_to_s3(ti):
+    file_path = ti.xcom_pull(task_ids="ingest_taxi_trips")
+
+    storage = S3Storage()
+
+    s3_key = f"raw/taxi_trips/{Path(file_path).name}"
+
+    s3_uri = storage.upload_file(
+        local_path=file_path,
+        s3_key=s3_key,
+    )
+
+    print(f"Uploaded taxi trips data to: {s3_uri}")
+
+    return s3_uri
 
 default_args = {
     "owner": "urbanmove",
@@ -53,4 +68,10 @@ with DAG(
         execution_timeout=timedelta(minutes=30),
     )
 
-    ingest_task >> validate_task
+    upload_task = PythonOperator(
+        task_id="upload_taxi_trips_to_s3",
+        python_callable=upload_taxi_trips_to_s3,
+        execution_timeout=timedelta(minutes=30),
+    )
+
+    ingest_task >> validate_task >> upload_task

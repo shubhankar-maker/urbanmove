@@ -8,6 +8,7 @@ from urbanmove.ingestion.nyc_311 import (
     download_311_data,
     validate_311_data,
 )
+from urbanmove.storage.s3_client import S3Storage
 
 START_DATE = "2025-01-01"
 END_DATE = "2025-01-02"
@@ -38,6 +39,22 @@ with DAG(
         print(f"NYC 311 validation report: {report}")
         return report
 
+    def upload_311_to_s3(ti):
+        file_path = ti.xcom_pull(task_ids="ingest_311_data")
+
+        storage = S3Storage()
+
+        s3_key = f"raw/nyc_311/{Path(file_path).name}"
+
+        s3_uri = storage.upload_file(
+            local_path=file_path,
+            s3_key=s3_key,
+        )
+
+        print(f"Uploaded NYC 311 data to: {s3_uri}")
+
+        return s3_uri
+
     ingest_task = PythonOperator(
         task_id="ingest_311_data",
         python_callable=ingest_311_data,
@@ -50,4 +67,10 @@ with DAG(
         execution_timeout=timedelta(minutes=10),
     )
 
-    ingest_task >> validate_task
+    upload_task = PythonOperator(
+        task_id="upload_311_to_s3",
+        python_callable=upload_311_to_s3,
+        execution_timeout=timedelta(minutes=10),
+    )
+
+    ingest_task >> validate_task >> upload_task

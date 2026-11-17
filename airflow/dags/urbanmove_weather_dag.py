@@ -9,7 +9,7 @@ from urbanmove.ingestion.weather import (
     download_weather,
     validate_weather,
 )
-
+from urbanmove.storage.s3_client import S3Storage
 
 def ingest_weather():
     start_date = "2025-01-01"
@@ -30,6 +30,22 @@ def validate_weather_task(ti):
 
     print(f"Weather validation report: {report}")
 
+
+def upload_weather_to_s3(ti):
+    file_path = ti.xcom_pull(task_ids="ingest_weather")
+
+    storage = S3Storage()
+
+    s3_key = f"raw/weather/{Path(file_path).name}"
+
+    s3_uri = storage.upload_file(
+        local_path=file_path,
+        s3_key=s3_key,
+    )
+
+    print(f"Uploaded weather data to: {s3_uri}")
+
+    return s3_uri
 
 default_args = {
     "owner": "urbanmove",
@@ -60,4 +76,10 @@ with DAG(
         execution_timeout=timedelta(minutes=10),
     )
 
-    ingest_task >> validate_task
+    upload_task = PythonOperator(
+        task_id="upload_weather_to_s3",
+        python_callable=upload_weather_to_s3,
+        execution_timeout=timedelta(minutes=10),
+    )
+
+    ingest_task >> validate_task >> upload_task
