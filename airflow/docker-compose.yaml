@@ -176,7 +176,6 @@ services:
     <<: *airflow-common
     command: celery worker
     healthcheck:
-      # yamllint disable rule:line-length
       test: ["CMD-SHELL", 'celery --app airflow.providers.celery.executors.celery_executor.app inspect ping -d "celery@$${HOSTNAME}" || celery --app airflow.executors.celery_executor.app inspect ping -d "celery@$${HOSTNAME}"']
       interval: 30s
       timeout: 10s
@@ -184,9 +183,20 @@ services:
       start_period: 30s
     environment:
       <<: *airflow-common-env
-      # Required to handle warm shutdown of the celery workers properly
-      # See https://airflow.apache.org/docs/docker-stack/entrypoint.html#signal-propagation
       DUMB_INIT_SETSID: "0"
+      AWS_PROFILE: urbanmove-dev
+      AWS_SHARED_CREDENTIALS_FILE: /home/airflow/.aws/credentials
+      AWS_CONFIG_FILE: /home/airflow/.aws/config
+      AWS_REGION: ap-south-1
+      S3_BUCKET_NAME: urbanmove-data-lake-7319-926583575176-ap-south-1-an
+    volumes:
+      - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
+      - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
+      - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config
+      - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
+      - ${AIRFLOW_PROJ_DIR:-.}/../src:/opt/airflow/src
+      - ${AIRFLOW_PROJ_DIR:-.}/../data:/opt/airflow/data
+      - /home/that_shubhu/.aws-urbanmove:/home/airflow/.aws:ro
     restart: always
     depends_on:
       <<: *airflow-common-depends-on
